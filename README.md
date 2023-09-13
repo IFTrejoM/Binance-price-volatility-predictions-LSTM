@@ -1,1 +1,1 @@
-# Binance-price-volatility-predictions-LSTM
+# Binance-time-series-analysis
