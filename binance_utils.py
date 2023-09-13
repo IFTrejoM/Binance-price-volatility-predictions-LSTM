@@ -1,13 +1,7 @@
 import statsmodels.api as sm
-<<<<<<< HEAD
 import numpy as np
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import pandas as pd
-=======
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
->>>>>>> 2422bd5695d483cd60a02b0a3426df1d531d538f
 
 def feature_backward_elimination(data, target, significance_level=0.05):
     """
@@ -136,6 +130,3 @@ def select_features_from_regularization(df, lasso_threshold=0.01, ridge_threshol
     selected_features = list(set(lasso_selected) & set(ridge_selected))
     
     return selected_features
-=======
-#####
->>>>>>> 2422bd5695d483cd60a02b0a3426df1d531d538f
