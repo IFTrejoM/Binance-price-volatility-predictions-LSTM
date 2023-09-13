@@ -67,7 +67,6 @@ def remove_outliers(df):
     df_out = df[~((df < (Q1 - 1.5 * IQR)) | (df > (Q3 + 1.5 * IQR))).any(axis=1)]
     return df_out
 
-<<<<<<< HEAD
 #####
 
 def drop_high_vif_vars(df, threshold=5):
