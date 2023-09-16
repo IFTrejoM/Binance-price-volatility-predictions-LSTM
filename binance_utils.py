@@ -41,19 +41,20 @@ def feature_backward_elimination(data, target, significance_level=0.05):
 
 #####
 
-def remove_outliers(df):
+def remove_outliers(df, multiplier=1.5):
     """
     Elimina valores atípicos de un DataFrame basado en el método IQR.
 
     Parámetros:
     - df (pd.DataFrame): El DataFrame de entrada del cual se deben eliminar los valores atípicos.
+    - multiplier (float): Multiplicador para el IQR para determinar los límites de los valores atípicos. Default es 1.5.
 
     Devoluciones:
     - pd.DataFrame: Un nuevo DataFrame sin los valores atípicos.
 
     Ejemplo:
     >>> df = pd.DataFrame({'A': [1, 2, 3, 4, 5, 100], 'B': [6, 7, 8, 9, 10, 200]})
-    >>> remove_outliers(df)
+    >>> remove_outliers(df, multiplier=2.0)
        A   B
     0  1   6
     1  2   7
@@ -64,7 +65,7 @@ def remove_outliers(df):
     Q1 = df.quantile(0.25)
     Q3 = df.quantile(0.75)
     IQR = Q3 - Q1
-    df_out = df[~((df < (Q1 - 1.5 * IQR)) | (df > (Q3 + 1.5 * IQR))).any(axis=1)]
+    df_out = df[~((df < (Q1 - multiplier * IQR)) | (df > (Q3 + multiplier * IQR))).any(axis=1)]
     return df_out
 
 #####
