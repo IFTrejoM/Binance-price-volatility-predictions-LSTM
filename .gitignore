@@ -160,6 +160,7 @@ df_train_1.parquet
 arquitectura-del-modelo.docx
 =======
 >>>>>>> 2422bd5695d483cd60a02b0a3426df1d531d538f
+to-ignore/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
