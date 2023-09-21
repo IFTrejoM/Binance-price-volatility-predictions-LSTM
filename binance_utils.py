@@ -130,3 +130,25 @@ def select_features_from_regularization(df, lasso_threshold=0.01, ridge_threshol
     selected_features = list(set(lasso_selected) & set(ridge_selected))
     
     return selected_features
+
+#####
+
+from statsmodels.tsa.arima.model import ARIMA
+from sklearn.metrics import mean_squared_error
+
+def train_arima(series, order, train_size=0.8):
+    # Dividir la serie en conjuntos de entrenamiento y prueba
+    train_len = int(len(series) * train_size)
+    train, test = series[:train_len], series[train_len:]
+    
+    # Entrenar el modelo ARIMA en el conjunto de entrenamiento
+    model = ARIMA(train, order=order)
+    model_fit = model.fit()
+    
+    # Predecir los valores en el conjunto de prueba
+    predictions = model_fit.forecast(steps=len(test))
+    
+    # Calcular el RMSE usando las predicciones y los valores reales del conjunto de prueba
+    rmse = mean_squared_error(test, predictions, squared=False)
+    
+    return model_fit.aic, model_fit.bic, rmse
