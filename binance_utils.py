@@ -134,6 +134,87 @@ def select_features_from_regularization(df, lasso_threshold=0.01, ridge_threshol
 
 #####
 
+def find_sorted_large_time_gaps(index, threshold_seconds):
+    """
+    Encuentra las brechas de tiempo que exceden un cierto umbral en segundos y las ordena de mayor a menor.
+    
+    Parameters:
+    -----------
+    index : pd.DatetimeIndex
+        Índice de tipo datetime.
+    threshold_seconds : int
+        Umbral en segundos para considerar una brecha como "grande".
+    
+    Returns:
+    --------
+    list of tuples
+        Lista ordenada de tuplas donde cada tupla representa el inicio y fin de una brecha que excede el umbral.
+    """
+    # Calcular las diferencias entre tiempos consecutivos
+    time_diffs = pd.Series(index).diff().dropna()
+    
+    # Identificar las brechas que exceden el umbral
+    large_gaps = time_diffs[time_diffs > pd.Timedelta(seconds=threshold_seconds)]
+    
+    # Crear una lista de tuplas con el inicio y fin de cada brecha
+    gaps_list = [(index[i - 1], index[i]) for i in large_gaps.index]
+    
+    # Ordenar la lista de brechas de mayor a menor
+    gaps_list.sort(key=lambda x: (x[1] - x[0]), reverse=True)
+    
+    return gaps_list
+
+#####
+
+def add_nan_rows_for_large_gaps(df, threshold_seconds, nan_frequency_seconds=1):
+    """
+    Agrega filas NaN en un DataFrame para brechas temporales grandes.
+
+    Parámetros:
+    -----------
+    df : pd.DataFrame
+        DataFrame con un índice de tipo datetime.
+    threshold_seconds : int
+        Umbral en segundos para identificar una brecha temporal grande.
+    nan_frequency_seconds : int, opcional (por defecto es 1)
+        Frecuencia en segundos con la que se agregarán filas NaN dentro de las brechas identificadas.
+
+    Retorno:
+    --------
+    df_filled : pd.DataFrame
+        DataFrame con filas NaN agregadas en brechas temporales grandes.
+
+    Ejemplo:
+    --------
+    >>> df = pd.DataFrame({'value': [1, 2, 3, 4]}, index=pd.to_datetime(['2023-01-01 00:00:00', '2023-01-01 00:00:01', '2023-01-01 00:01:00', '2023-01-01 00:01:02']))
+    >>> df_filled = add_nan_rows_for_large_gaps(df, threshold_seconds=30, nan_frequency_seconds=5)
+    """
+
+    # Calcular las diferencias entre tiempos consecutivos
+    time_diffs = df.index.to_series().diff()
+
+    # Identificar las brechas que son mayores al umbral
+    large_gaps = time_diffs[time_diffs > pd.Timedelta(seconds=threshold_seconds)]
+
+    # Redondear nan_frequency_seconds al entero más cercano
+    rounded_seconds = round(nan_frequency_seconds)
+    freq_str = f"{rounded_seconds}S"
+
+    # Para cada brecha identificada, agregar filas NaN con la frecuencia especificada
+    for start, gap in large_gaps.items():
+        gap_range = pd.date_range(start=start + pd.Timedelta(seconds=1), 
+                                  end=start + gap - pd.Timedelta(seconds=1), 
+                                  freq=freq_str)
+        gap_df = pd.DataFrame(index=gap_range)
+        df = pd.concat([df, gap_df])
+
+    # Ordenar el DataFrame resultante por índice
+    df_filled = df.sort_index()
+
+    return df_filled
+
+#####
+
 def find_large_time_gaps(index, threshold_seconds):
     """
     Encuentra las brechas de tiempo que exceden un cierto umbral en segundos y las ordena de mayor a menor.
