@@ -296,135 +296,52 @@ def add_nan_rows_for_large_gaps(df, threshold_seconds, nan_frequency_seconds=1):
 
 #####
 
-def impute_with_lagged_time_data(series, max_days_back=5):
+def find_nearest_past_time_index(target, series, max_diff_seconds=5):
     """
-    Imputa valores faltantes en una serie temporal utilizando datos retrasados.
-
-    Parámetros:
+    Encuentra el índice más cercano a 'target' en 'series' dentro de un rango de 'max_diff_seconds', 
+    comenzando por el día inmediatamente anterior a 'target'.
+    
+    Parameters:
     -----------
+    target : datetime
+        Fecha y hora objetivo.
     series : pd.Series
-        Serie temporal que contiene valores NaN que se desean imputar. El índice de la serie debe ser de tipo datetime.
-
-    max_days_back : int, opcional (por defecto es 5)
-        Número máximo de días hacia atrás que se considerarán para buscar un segmento de datos que se pueda utilizar para imputar los valores faltantes.
-
-    Retorno:
+        Serie temporal con índice de tipo datetime.
+    max_diff_seconds : int, optional
+        Diferencia máxima permitida en segundos.
+    
+    Returns:
     --------
-    imputed_series : pd.Series
-        Serie con los valores NaN imputados utilizando datos retrasados.
-
-    Descripción:
-    ------------
-    La función identifica el mayor bloque de valores NaN en la serie y busca un segmento de datos en días anteriores que pueda ser utilizado para imputar estos valores faltantes.
-    Si se encuentra un segmento adecuado, se copian estos datos en el bloque de valores NaN. Si el segmento encontrado tiene una longitud diferente al bloque de NaNs,
-    se ajusta la imputación de la siguiente manera:
-
-    1. Si el segmento retrasado tiene la misma longitud que el bloque de NaNs, se copian los valores directamente.
-    2. Si el segmento retrasado es más largo que el bloque de NaNs, se seleccionan aleatoriamente valores del segmento retrasado para ajustar la longitud.
-    3. Si el segmento retrasado es más corto que el bloque de NaNs, se imputan los valores disponibles y el resto se completa con la media del segmento retrasado.
-
-    Excepciones:
-    ------------
-    ValueError:
-        Se lanza si no se encuentra un segmento adecuado en los días anteriores especificados por 'max_days_back'.
-
-    Ejemplo:
-    --------
-    >>> s = pd.Series([1, 2, np.nan, np.nan, 5, 6, 1, 2, 3, 4], index=pd.date_range("20220101", periods=10))
-    >>> imputed_s = impute_with_lagged_time_data(s)
-    >>> print(imputed_s)
-    2022-01-01    1.0
-    2022-01-02    2.0
-    2022-01-03    1.0
-    2022-01-04    2.0
-    2022-01-05    5.0
-    2022-01-06    6.0
-    2022-01-07    1.0
-    2022-01-08    2.0
-    2022-01-09    3.0
-    2022-01-10    4.0
-    dtype: float64
+    datetime or None
+        Índice más cercano o None si no se encuentra.
     """
-
-    def find_largest_nan_gap(series):
-        # Calcular las diferencias entre tiempos consecutivos
-        time_diffs = series.index.to_series().diff().dropna()
-
-        # Identificar los puntos exactos donde inicia y termina la mayor brecha:
-        gap_end = time_diffs.idxmax()
-        if gap_end not in series.index:
-            return None, None
-        gap_start = series.index[series.index.get_loc(gap_end) - 1]
-        
-        # Redondear los valores de inicio y fin de la brecha:
-        gap_start = gap_start.floor('s')
-        gap_end = gap_end.floor('s')
-        
-        return gap_start, gap_end
+    # Convertir max_diff_seconds a Timedelta
+    max_diff = pd.Timedelta(seconds=max_diff_seconds)
     
-    def find_closest_index(target, series, max_diff=pd.Timedelta(seconds=5)):
-        """Encuentra el índice más cercano a 'target' en 'series' dentro de un rango de 'max_diff'"""
-        
-        # Calcula la diferencia en segundos
-        diff_seconds = (series.index - target).total_seconds()
-        
-        # Aplica el método .abs() a la diferencia en segundos
-        abs_diff = np.abs(diff_seconds)
-        
-        if abs_diff.min() <= max_diff.total_seconds():
-            return series.index[np.argmin(abs_diff)]
-        return None
+    # Calcular la diferencia en segundos
+    target_seconds = target.hour * 3600 + target.minute * 60 + target.second
     
-    def find_lagged_time_range(gap_start, gap_end, series, max_days_back):
-        """Busca el rango de tiempo de la brecha de valores nulos en días anteriores."""
+    # Comenzar la búsqueda en el día inmediatamente anterior
+    days_back = 1
+    while days_back <= (target - series.index.min()).days:
+        filtered_series = series[series.index.date == (target - pd.Timedelta(days=days_back)).date()]
         
-        for days_back in range(1, max_days_back+1):
-            lagged_start_candidate = gap_start - pd.Timedelta(days=days_back)
-            lagged_end_candidate = gap_end - pd.Timedelta(days=days_back)
+        if not filtered_series.empty:
+            series_seconds = filtered_series.index.hour * 3600 + filtered_series.index.minute * 60 + filtered_series.index.second
+            diff = np.abs(series_seconds - target_seconds)
             
-            closest_lagged_start = find_closest_index(lagged_start_candidate, series)
-            closest_lagged_end = find_closest_index(lagged_end_candidate, series)
-            
-            if closest_lagged_start and closest_lagged_end:
-                # Verificar que ambos índices existen en la serie
-                if closest_lagged_start in series.index and closest_lagged_end in series.index:
-                    return closest_lagged_start, closest_lagged_end
-
-        raise ValueError(f"No se encontró un rango adecuado en los últimos {max_days_back} días.")
+            # Verificar si la diferencia mínima es menor o igual a la diferencia máxima permitida
+            if diff.min() <= max_diff.total_seconds():
+                return filtered_series.index[np.argmin(diff)]
+        
+        # Si no se encuentra un valor adecuado, buscar en el siguiente día anterior
+        days_back += 1
     
-    def impute_with_closest_lagged_data(series, gap_start, gap_end, closest_lagged_start, closest_lagged_end):
-        """Copia datos del rango retrasado escogido y los imputa en el rango NaN actual."""
-        
-        # Verificar que los índices existen en la serie
-        if not all(idx in series.index for idx in [gap_start, gap_end, closest_lagged_start, closest_lagged_end]):
-            return series
-        
-        gap_start_idx = series.index.get_loc(gap_start)
-        gap_end_idx = series.index.get_loc(gap_end)
-        lagged_start_idx = series.index.get_loc(closest_lagged_start)
-        lagged_end_idx = series.index.get_loc(closest_lagged_end)
-        
-        gap_length = gap_end_idx - gap_start_idx + 1
-        lagged_length = lagged_end_idx - lagged_start_idx + 1
-        
-        if gap_length == lagged_length:
-            series.iloc[gap_start_idx:gap_end_idx+1] = series.iloc[lagged_start_idx:lagged_end_idx+1].values
-        elif lagged_length > gap_length:
-            random_indices = np.random.choice(lagged_length, gap_length, replace=False)
-            random_indices.sort()
-            series.iloc[gap_start_idx:gap_end_idx+1] = series.iloc[lagged_start_idx + random_indices].values
-        else:
-            series.iloc[gap_start_idx:gap_start_idx+lagged_length] = series.iloc[lagged_start_idx:lagged_end_idx+1].values
-            remaining_gap = gap_length - lagged_length
-            series.iloc[gap_start_idx+lagged_length:gap_end_idx+1] = [series.iloc[lagged_start_idx:lagged_end_idx+1].mean()] * remaining_gap
-        
-        return series
+    return None
 
-    gap_start, gap_end = find_largest_nan_gap(series)
-    lagged_start, lagged_end = find_lagged_time_range(gap_start, gap_end, series, max_days_back)
-    imputed_series = impute_with_closest_lagged_data(series, gap_start, gap_end, lagged_start, lagged_end)
-    
-    return imputed_series
+#####
+
+
 
 #####
 
