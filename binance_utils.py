@@ -366,3 +366,29 @@ def plot_different_color_within_range(series, start_date, end_date, main_color='
     # Datos dentro del rango
     mask_inside = (series.index >= start_date) & (series.index <= end_date)
     plt.plot(series.index[mask_inside], series[mask_inside], label='Datos en rango coloreado', color=highlight_color)
+
+#####
+
+def mark_rows_with_outliers(df, multiplier=1.5):
+    """
+    Marca las filas que contienen al menos un valor atípico en cualquiera de sus columnas.
+
+    Parámetros:
+    - df (pd.DataFrame): El DataFrame de entrada en el que se buscarán valores atípicos.
+    - multiplier (float): Multiplicador para el IQR para determinar los límites de los valores atípicos. Default es 1.5.
+
+    Devoluciones:
+    - pd.Series: Una serie con valores 1 para filas con valores atípicos y 0 para filas sin valores atípicos.
+
+    Ejemplo:
+    >>> df = pd.DataFrame({'A': [1, 2, 3, 4, 5, 100], 'B': [6, 7, 8, 9, 10, 200]})
+    >>> df['is_outlier'] = mark_rows_with_outliers(df, multiplier=2.0)
+    """
+    Q1 = df.quantile(0.25)
+    Q3 = df.quantile(0.75)
+    IQR = Q3 - Q1
+    
+    # Marcar las filas que contienen al menos un valor atípico
+    outlier_mask = ((df < (Q1 - multiplier * IQR)) | (df > (Q3 + multiplier * IQR))).any(axis=1)
+    
+    return outlier_mask.astype(int)
