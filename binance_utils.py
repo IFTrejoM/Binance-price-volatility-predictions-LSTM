@@ -392,3 +392,55 @@ def mark_rows_with_outliers(df, multiplier=1.5):
     outlier_mask = ((df < (Q1 - multiplier * IQR)) | (df > (Q3 + multiplier * IQR))).any(axis=1)
     
     return outlier_mask.astype(int)
+
+#####
+
+def apply_outlier_capping(series, multiplier=1.5):
+    """
+    Aplica capping a los valores atípicos de una serie.
+
+    Parámetros:
+    - series (pd.Series): Serie de entrada.
+    - multiplier (float): Multiplicador para el IQR para determinar los límites de capping. Default es 1.5.
+
+    Devuelve:
+    - pd.Series: Serie con capping aplicado.
+    """
+    
+    Q1 = series.quantile(0.25)
+    Q3 = series.quantile(0.75)
+    IQR = Q3 - Q1
+
+    # Definir límites
+    upper_limit = Q3 + multiplier * IQR
+    lower_limit = Q1 - multiplier * IQR
+
+    # Aplicar capping
+    series_capped = np.where(series > upper_limit, upper_limit, 
+                             np.where(series < lower_limit, lower_limit, series))
+    
+    return pd.Series(series_capped)
+
+#####
+
+from scipy.stats import mstats
+
+def apply_windsorizing(series, multiplier=1.5):
+    """
+    Aplica windsorizing a una serie para limitar los valores atípicos.
+
+    Parámetros:
+    - series (pd.Series): La serie a la que se le aplicará windsorizing.
+    - multiplier (float): Multiplicador para el IQR para determinar los límites de los valores atípicos.
+
+    Devoluciones:
+    - pd.Series: Serie con valores atípicos limitados.
+    """
+    Q1 = series.quantile(0.25)
+    Q3 = series.quantile(0.75)
+    IQR = Q3 - Q1
+
+    lower_bound = Q1 - multiplier * IQR
+    upper_bound = Q3 + multiplier * IQR
+
+    return mstats.winsorize(series, limits=[(series < lower_bound).mean(), (series > upper_bound).mean()])
