@@ -423,24 +423,28 @@ def apply_outlier_capping(series, multiplier=1.5):
 
 #####
 
-from scipy.stats import mstats
-
-def apply_windsorizing(series, multiplier=1.5):
+def sample_time_series(df, percentage, seed=42):
     """
-    Aplica windsorizing a una serie para limitar los valores atípicos.
+    Toma una muestra continua de una serie de tiempo basada en un porcentaje dado.
 
     Parámetros:
-    - series (pd.Series): La serie a la que se le aplicará windsorizing.
-    - multiplier (float): Multiplicador para el IQR para determinar los límites de los valores atípicos.
+    - df: DataFrame de la serie de tiempo.
+    - percentage: Porcentaje de datos que se desea muestrear (valor entre 0 y 1).
+    - seed: Semilla para la generación de números aleatorios.
 
-    Devoluciones:
-    - pd.Series: Serie con valores atípicos limitados.
+    Retorna:
+    - DataFrame que representa la muestra continua.
     """
-    Q1 = series.quantile(0.25)
-    Q3 = series.quantile(0.75)
-    IQR = Q3 - Q1
+    # Establece la semilla para la reproducibilidad
+    np.random.seed(seed)
 
-    lower_bound = Q1 - multiplier * IQR
-    upper_bound = Q3 + multiplier * IQR
+    # Define el tamaño de la muestra
+    sample_size = int(len(df) * percentage)
 
-    return mstats.winsorize(series, limits=[(series < lower_bound).mean(), (series > upper_bound).mean()])
+    # Decide un punto de inicio aleatorio, asegurándote de que haya suficientes datos después de ese punto
+    # para tomar el porcentaje completo establecido
+    max_start_index = len(df) - sample_size
+    start_index = np.random.randint(0, max_start_index)
+
+    # Toma el segmento de datos que representa el porcentaje a partir de ese punto de inicio
+    return df[start_index:start_index + sample_size]
