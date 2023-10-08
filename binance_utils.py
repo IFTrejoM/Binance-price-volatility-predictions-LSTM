@@ -448,3 +448,44 @@ def sample_time_series(df, percentage, seed=42):
 
     # Toma el segmento de datos que representa el porcentaje a partir de ese punto de inicio
     return df[start_index:start_index + sample_size]
+
+#####
+
+import nolds
+import numpy as np
+
+def cross_validated_lle(data, n=10000, cv=5, emb_dim=10, min_tsep=250, lag=1052, seed=None):
+    """
+    Realiza una validación cruzada del Mayor Exponente de Lyapunov (LLE) en una serie temporal.
+    
+    Parámetros:
+    - data: Serie temporal para analizar.
+    - n: Número de observaciones a seleccionar en cada iteración de validación cruzada.
+    - cv: Número de segmentos en los que dividir los datos.
+    - emb_dim: Dimensión del embedding para el cálculo del LLE.
+    
+    Retorna:
+    - lles: Lista de LLE calculados en cada iteración de validación cruzada.
+    """
+    lles = []
+    
+    # Asegurarse de que los datos tienen al menos n puntos
+    assert len(data) >= n, "Not enough data points for the specified n"
+    
+    # Establecer la semilla para la generación de números aleatorios
+    np.random.seed(seed)
+    
+    for _ in range(cv):
+        # Selecciona un índice de inicio aleatorio para el segmento de datos
+        start_idx = np.random.randint(0, len(data) - n + 1)
+        
+        # Selecciona un segmento de datos de tamaño n
+        segment = data[start_idx:start_idx+n]
+        
+        # Calcula el LLE para el segmento y lo añade a la lista de LLEs
+        lle = nolds.lyap_r(segment, emb_dim=emb_dim, min_tsep=min_tsep, lag=lag)
+        lles.append(lle)
+        
+        # print(f"LLE for segment starting at index {start_idx}: {lle}")
+    
+    return lles
