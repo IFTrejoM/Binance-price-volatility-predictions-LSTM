@@ -106,3 +106,29 @@ def cross_validated_dfa(data, n=10000, cv=5, order=1, seed=None):
         # print(f"Alfa for segment starting at index {start_idx}: {alfa}")
     
     return alphas
+
+#####
+
+def select_features_from_regularization(df, lasso_threshold=0.01, ridge_threshold=0.01):
+    """
+    Esta función selecciona las características basadas en los coeficientes de regularización de Lasso y Ridge.
+    
+    Parámetros:
+    - df: DataFrame que contiene los coeficientes de Lasso y Ridge para cada característica.
+    - lasso_threshold: Umbral para los coeficientes de Lasso.
+    - ridge_threshold: Umbral para los coeficientes de Ridge.
+    
+    Devuelve:
+    - Una lista de nombres de características seleccionadas.
+    """
+    
+    # Seleccionar características basadas en Lasso
+    lasso_selected = df[df['lasso_coefs'].abs() > lasso_threshold]['X'].tolist()
+    
+    # Seleccionar características basadas en Ridge
+    ridge_selected = df[df['ridge_coefs'].abs() > ridge_threshold]['X'].tolist()
+    
+    # Intersectar las listas para obtener características que son importantes tanto para Lasso como para Ridge
+    selected_features = list(set(lasso_selected) & set(ridge_selected))
+    
+    return selected_features
