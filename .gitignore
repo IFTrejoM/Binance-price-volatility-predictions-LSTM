@@ -154,6 +154,7 @@ cython_debug/
 
 # Others
 datasets/
+reference/
 explicacion.txt
 <<<<<<< HEAD
 df_train_1.parquet
